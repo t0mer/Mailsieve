@@ -80,6 +80,26 @@ async def record_event(
     await session.flush()
 
 
+async def get_by_id(session: AsyncSession, result_id: int) -> ValidationResult | None:
+    """Fetch a single stored result by primary key."""
+    return await session.get(ValidationResult, result_id)
+
+
+async def counts_by_email(
+    session: AsyncSession, emails: list[str]
+) -> dict[str, int]:
+    """Number of stored revisions for each of ``emails`` (missing = absent key)."""
+    if not emails:
+        return {}
+    stmt = (
+        select(ValidationResult.email, func.count())
+        .where(ValidationResult.email.in_(emails))
+        .group_by(ValidationResult.email)
+    )
+    rows = await session.execute(stmt)
+    return dict(rows.tuples().all())
+
+
 async def revisions(session: AsyncSession, email: str) -> list[ValidationResult]:
     """All stored revisions for ``email``, newest first."""
     stmt = (
