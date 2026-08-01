@@ -20,7 +20,6 @@ from sqlalchemy import (
     Index,
     String,
     Text,
-    text,
 )
 from sqlalchemy import (
     Enum as SAEnum,
@@ -56,8 +55,10 @@ class ValidationResult(Base):
         DateTime(timezone=True), index=True, default=_utcnow
     )
 
-    # Every read is "latest for this address": (email, created_at DESC).
-    __table_args__ = (Index("ix_vr_email_created", "email", text("created_at DESC")),)
+    # Every read is "latest for this address": ORDER BY created_at DESC LIMIT 1.
+    # A plain (email, created_at) composite serves this via a backward index scan;
+    # a DESC expression index gains nothing here and confuses cross-backend autogen.
+    __table_args__ = (Index("ix_vr_email_created", "email", "created_at"),)
 
 
 class VerificationEvent(Base):
