@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Dark mode is driven by a `.dark` class on <html> (set pre-paint in index.html). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Inter Tight", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* One saturated colour per verdict — the only saturated colour on the page. */
+  --color-deliverable: #2dd4a7;
+  --color-undeliverable: #e85d5d;
+  --color-risky: #e8a33d;
+  --color-unknown: #5b6873;
+}
+
+/* Neutral slate surfaces, swapped by theme. Everything but the verdict is quiet. */
+:root {
+  --ground: #f7f9fa;
+  --surface: #ffffff;
+  --surface-2: #eef2f4;
+  --border: #dce3e7;
+  --text: #141b21;
+  --muted: #5b6873;
+  --cell-off: #d4dbe0;
+}
+
+.dark {
+  --ground: #0f1418;
+  --surface: #161d23;
+  --surface-2: #1c242b;
+  --border: #263039;
+  --text: #e6edf2;
+  --muted: #8a97a3;
+  --cell-off: #2b353d;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv05", "ss01";
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-deliverable);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
