@@ -1,0 +1,95 @@
+services:
+  mailsieve:
+    image: techblog/mailsieve:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    container_name: mailsieve
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./config:/config
+    environment:
+      MAILSIEVE_CONFIG_FILE: /config/config.yaml
+      # Env always overrides YAML. Nested keys use double underscore.
+      MAILSIEVE_DATABASE__TYPE: sqlite
+      MAILSIEVE_REDIS__URL: redis://redis:6379/0
+      MAILSIEVE_LOGGING__LEVEL: INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mailsieve
+
+  redis:
+    image: redis:7-alpine
+    container_name: mailsieve-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - mailsieve
+
+  # ------------------------------------------------------------------
+  # Postgres backend — uncomment, then set on the mailsieve service:
+  #   MAILSIEVE_DATABASE__TYPE: postgres
+  #   MAILSIEVE_DATABASE__POSTGRES__HOST: postgres
+  #   MAILSIEVE_DATABASE__POSTGRES__PASSWORD: <password>
+  # and add postgres to its depends_on.
+  # ------------------------------------------------------------------
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: mailsieve-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: mailsieve
+  #     POSTGRES_PASSWORD: change-me
+  #     POSTGRES_DB: mailsieve
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U mailsieve"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 5
+  #   networks:
+  #     - mailsieve
+
+  # ------------------------------------------------------------------
+  # MySQL backend — uncomment and set MAILSIEVE_DATABASE__TYPE: mysql
+  # ------------------------------------------------------------------
+  # mysql:
+  #   image: mysql:8
+  #   container_name: mailsieve-mysql
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_DATABASE: mailsieve
+  #     MYSQL_USER: mailsieve
+  #     MYSQL_PASSWORD: change-me
+  #     MYSQL_ROOT_PASSWORD: change-me-too
+  #   volumes:
+  #     - mysql-data:/var/lib/mysql
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 5
+  #   networks:
+  #     - mailsieve
+
+volumes:
+  redis-data:
+  # postgres-data:
+  # mysql-data:
+
+networks:
+  mailsieve:
+    driver: bridge
