@@ -33,3 +33,13 @@ async def sessionmaker_mem():
         await conn.run_sync(Base.metadata.create_all)
     yield async_sessionmaker(engine, expire_on_commit=False)
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def sessionmaker_mem2():
+    """A second, independent in-memory sessionmaker (e.g. a restore target)."""
+    engine = _memory_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield async_sessionmaker(engine, expire_on_commit=False)
+    await engine.dispose()
