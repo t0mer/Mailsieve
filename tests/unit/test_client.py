@@ -61,6 +61,55 @@ async def test_failing_proxy_is_dropped_and_next_attempt_differs():
     assert pool.count() == 1  # one proxy marked bad
 
 
+def test_proxy_attempts_get_a_shorter_bounded_timeout():
+    client = UpstreamClient(
+        _pool(),
+        _agents(),
+        timeout_seconds=15,
+        max_retries=1,
+        backoff_seconds=0,
+        politeness=Politeness(4, 0),
+        fallback_direct=True,
+        sleep=_nosleep,
+    )
+    assert client._attempt_timeout(None) == 15  # direct keeps full timeout
+    proxy_t = client._attempt_timeout("http://1.1.1.1:80")
+    assert proxy_t <= 6  # proxy attempts fail fast
+    assert proxy_t < client._attempt_timeout(None)
+
+
+@respx.mock
+async def test_dead_proxies_fall_back_to_direct():
+    # A populated pool of dead proxies must not hang forever: after a proxy
+    # failure, with fallback_direct the client issues a DIRECT request.
+    route = respx.get(URL).mock(
+        side_effect=[httpx.ConnectError("dead proxy"), httpx.Response(200, json={"ok": True})]
+    )
+    proxies_used: list[str | None] = []
+
+    def factory(proxy):
+        proxies_used.append(proxy)
+        return httpx.AsyncClient()
+
+    pool = _pool(["http://1.1.1.1:80", "http://2.2.2.2:80", "http://3.3.3.3:80"])
+    client = UpstreamClient(
+        pool,
+        _agents(),
+        timeout_seconds=5,
+        max_retries=5,
+        backoff_seconds=0,
+        politeness=Politeness(4, 0),
+        fallback_direct=True,
+        client_factory=factory,
+        sleep=_nosleep,
+    )
+    data = await client.get_json(URL, {"secret_key": "k"})
+    assert data == {"ok": True}
+    assert route.call_count == 2
+    assert proxies_used[0] is not None  # first attempt used a proxy
+    assert proxies_used[1] is None  # second attempt went direct (the fix)
+
+
 @respx.mock
 async def test_non_json_body_is_a_failure():
     respx.get(URL).mock(return_value=httpx.Response(200, text="<html>not json</html>"))

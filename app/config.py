@@ -73,7 +73,9 @@ class DatabaseCfg(BaseModel):
 
 
 class RedisCfg(BaseModel):
-    enabled: bool = True
+    # Disabled for now: the request flow is DB -> provider with no cache layer.
+    # Re-enable to put Redis back in front of the database.
+    enabled: bool = False
     url: str = "redis://localhost:6379/0"
     password: str = ""
     key_prefix: str = "mailsieve:v1"
@@ -98,7 +100,9 @@ class ProxiesCfg(BaseModel):
     protocol: str = "http"
     max: int = 200
     refresh_minutes: int = 10
-    fallback_direct: bool = False
+    # Free proxies are mostly dead; fall back to a direct request when they fail
+    # so validation stays fast and reliable. Politeness limits still apply.
+    fallback_direct: bool = True
 
 
 class RequestCfg(BaseModel):
