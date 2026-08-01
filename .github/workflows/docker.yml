@@ -1,17 +1,53 @@
 name: Docker
 
+# Versioning is driven by git tags and auto-increments (YYYY.M.PATCH, no leading
+# zero on the month). A manual run computes the next version via
+# scripts/next-version.sh and pushes that tag after a successful image push, so
+# the patch advances run to run. A Release-triggered run (if a Release workflow
+# is ever added) reuses the tag the Release already created. The git tag is the
+# single source of truth for the version either way.
+
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (blank = auto-increment YYYY.M.PATCH from latest tag)"
+        required: false
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+permissions:
+  contents: write          # push the version tag that drives auto-increment
 
 jobs:
-  publish:
+  docker:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # all tags needed to compute the next version
+
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}   # via env (injection-safe)
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          NEEDS_TAG=true
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          elif [ "$EVENT_NAME" = "workflow_run" ]; then
+            VERSION="$(git describe --tags --abbrev=0)"   # Release already tagged
+            NEEDS_TAG=false
+          else
+            VERSION="$(./scripts/next-version.sh)"         # manual run: bump patch
+          fi
+          [ -n "$VERSION" ] || { echo "::error::could not resolve a version"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "needs_tag=$NEEDS_TAG" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -21,20 +57,27 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: techblog/mailsieve
-          tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          tags: |
+            techblog/mailsieve:latest
+            techblog/mailsieve:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Tag AFTER a successful push so the next manual run increments. Skipped for
+      # Release-driven runs (the Release workflow owns its tag).
+      - name: Tag published version
+        if: steps.version.outputs.needs_tag == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
