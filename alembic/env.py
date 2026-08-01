@@ -10,7 +10,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
-from app.config import get_settings
+from app.config import load_settings
 from app.db.models import Base
 
 config = context.config
@@ -21,7 +21,9 @@ target_metadata = Base.metadata
 
 
 def _url() -> str:
-    return get_settings().database_url()
+    # Load fresh (not the cached singleton) so in-process startup migrations honour
+    # the current environment even across repeated app creations in tests.
+    return load_settings().database_url()
 
 
 def run_migrations_offline() -> None:
