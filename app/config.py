@@ -73,7 +73,9 @@ class DatabaseCfg(BaseModel):
 
 
 class RedisCfg(BaseModel):
-    enabled: bool = True
+    # Disabled for now: the request flow is DB -> provider with no cache layer.
+    # Re-enable to put Redis back in front of the database.
+    enabled: bool = False
     url: str = "redis://localhost:6379/0"
     password: str = ""
     key_prefix: str = "mailsieve:v1"
