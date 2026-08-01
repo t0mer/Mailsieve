@@ -1,0 +1,91 @@
+# Mailsieve configuration
+# Copy to config.yaml and edit. Environment variables always win over this file.
+# Nested keys map to env with a double underscore and the MAILSIEVE_ prefix:
+#   database.type                 -> MAILSIEVE_DATABASE__TYPE
+#   mailboxlayer.proxies.enabled  -> MAILSIEVE_MAILBOXLAYER__PROXIES__ENABLED
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  base_path: ""            # set when running behind a reverse proxy subpath
+
+database:
+  type: sqlite             # sqlite | postgres | mysql
+  sqlite:
+    path: /data/mailsieve.db
+  postgres:
+    host: localhost
+    port: 5432
+    user: mailsieve
+    password: ""
+    database: mailsieve
+    sslmode: prefer
+  mysql:
+    host: localhost
+    port: 3306
+    user: mailsieve
+    password: ""
+    database: mailsieve
+  pool_size: 5
+  echo: false
+
+redis:
+  enabled: true
+  url: redis://localhost:6379/0
+  password: ""
+  key_prefix: "mailsieve:v1"
+
+validation:
+  # Cache lifetime in days. Expiry evicts the cache entry only —
+  # database rows are never deleted or updated.
+  ttl_days: 30
+
+mailboxlayer:
+  base_url: https://mailboxlayer.com
+  # Homepage carrying the hidden input named scl_request_secret.
+  secret_url: https://mailboxlayer.com/
+  secret_input_name: scl_request_secret
+  api_path: /php_helper_scripts/email_api_n.php
+  smtp: 1                        # request SMTP check from mailboxlayer
+
+  secret:
+    ttl_minutes: 30              # re-fetch the homepage secret after this
+    refresh_on_reject: true      # force one refresh if a response looks like a bad secret
+
+  proxies:
+    enabled: true                # rotate through free proxies (as in the original script)
+    source_url: "https://api.proxyscrape.com/v4/free-proxy-list/get?request=get_proxies&skip=0&proxy_format=protocolipport&format=json&protocol=http&limit=200"
+    protocol: http
+    max: 200
+    refresh_minutes: 10          # re-fetch the pool on this interval
+    fallback_direct: false       # if the pool is empty/dead, allow a direct request
+
+  user_agents_file: ""           # empty = bundled app/data/user_agents.txt
+
+  request:
+    timeout_seconds: 15
+    max_retries: 5               # rotate proxy (and UA) on each retry
+    backoff_seconds: 0.5         # base for exponential backoff between retries
+
+  # Politeness — protects the access this project depends on. Do not disable.
+  politeness:
+    max_concurrent: 4            # in-flight upstream requests, service-wide
+    min_interval_seconds: 0.5    # floor spacing between upstream requests
+
+auth:
+  api:
+    enabled: false
+    # Token is generated in the UI (Settings) or via scripts/set_token.py
+    # and stored hashed in the database. It is never written to this file.
+  ui:
+    enabled: false
+    username: admin
+    password: ""                 # bcrypt hash, not plaintext
+
+backup:
+  directory: /data/backups
+  max_upload_mb: 256
+
+logging:
+  level: INFO                    # DEBUG | INFO | WARNING | ERROR
+  json: false
