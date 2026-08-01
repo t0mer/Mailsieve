@@ -58,7 +58,8 @@ mailboxlayer:
     protocol: http
     max: 200
     refresh_minutes: 10          # re-fetch the pool on this interval
-    fallback_direct: false       # if the pool is empty/dead, allow a direct request
+    fallback_direct: true        # if a proxy is dead/empty, fall back to a direct request
+                                 # (recommended: free proxies are unreliable)
 
   user_agents_file: ""           # empty = bundled app/data/user_agents.txt
 

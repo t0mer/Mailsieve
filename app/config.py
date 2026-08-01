@@ -98,7 +98,9 @@ class ProxiesCfg(BaseModel):
     protocol: str = "http"
     max: int = 200
     refresh_minutes: int = 10
-    fallback_direct: bool = False
+    # Free proxies are mostly dead; fall back to a direct request when they fail
+    # so validation stays fast and reliable. Politeness limits still apply.
+    fallback_direct: bool = True
 
 
 class RequestCfg(BaseModel):
