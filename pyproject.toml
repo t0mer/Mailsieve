@@ -76,6 +76,17 @@ ignore = ["S101"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection markers are intended as call-expression defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Path",
+    "fastapi.Header",
+]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
