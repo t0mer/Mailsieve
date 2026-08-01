@@ -10,7 +10,40 @@ cp config.example.yaml config/config.yaml
 docker compose up -d
 ```
 
-Open http://localhost:8080 for the UI, http://localhost:8080/docs for the API.
+Open http://localhost:8080 for the UI, http://localhost:8080/api/docs for the API.
+
+## Screens
+
+### Check
+
+Every address renders as a **signal strip** — a fixed row of cells across the delivery
+chain (`format · mx · smtp · catch-all`) and its attributes (`role · free · disposable`),
+so each address produces a recognisable left-to-right fingerprint. The verdict sits large
+in its own colour, with `score` as a secondary figure.
+
+![Check — light](assets/screenshots/home-light.png)
+![Check — dark](assets/screenshots/home-dark.png)
+
+### History
+
+Results are stored append-only and paginated server-side. A revision badge links to the
+diff for any address checked more than once.
+
+![History](assets/screenshots/history-light.png)
+
+### Diff
+
+Two revisions side by side, changed fields highlighted, with a timeline of every revision —
+this is why the table is append-only.
+
+![Diff](assets/screenshots/diff-light.png)
+
+### Settings
+
+Generate/rotate the API token (shown once), adjust the cache TTL, and download or restore a
+portable backup.
+
+![Settings](assets/screenshots/settings-light.png)
 
 ## How it works
 
