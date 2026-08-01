@@ -16,7 +16,7 @@ from typing import Any, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import EventSource, ValidationResult, VerificationEvent
+from app.db.models import AppSetting, EventSource, ValidationResult, VerificationEvent
 
 # Maximum rows a single history page may return, regardless of client request.
 MAX_PAGE = 250
@@ -108,6 +108,27 @@ async def revisions(session: AsyncSession, email: str) -> list[ValidationResult]
         .order_by(ValidationResult.created_at.desc(), ValidationResult.id.desc())
     )
     return list((await session.scalars(stmt)).all())
+
+
+async def get_setting(session: AsyncSession, key: str) -> str | None:
+    row = await session.get(AppSetting, key)
+    return row.value if row is not None else None
+
+
+async def set_setting(session: AsyncSession, key: str, value: str) -> None:
+    row = await session.get(AppSetting, key)
+    if row is None:
+        session.add(AppSetting(key=key, value=value))
+    else:
+        row.value = value
+    await session.flush()
+
+
+async def delete_setting(session: AsyncSession, key: str) -> None:
+    row = await session.get(AppSetting, key)
+    if row is not None:
+        await session.delete(row)
+        await session.flush()
 
 
 def _sort_column(sort: str) -> Any:

@@ -46,6 +46,15 @@ class ValidationService:
         self._ttl_days = ttl_days
         self._ttl_seconds = ttl_days * 86400
 
+    @property
+    def ttl_days(self) -> int:
+        return self._ttl_days
+
+    def set_ttl_days(self, days: int) -> None:
+        """Update the cache/freshness TTL at runtime (from a settings change)."""
+        self._ttl_days = days
+        self._ttl_seconds = days * 86400
+
     def _is_fresh(self, row: ValidationResult) -> bool:
         created = row.created_at
         if created.tzinfo is None:
