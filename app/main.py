@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
@@ -29,10 +30,20 @@ from app.services.backup_service import BackupService
 from app.services.history_service import HistoryService
 from app.services.validation_service import ValidationService
 
-try:
-    __version__ = version("mailsieve")
-except PackageNotFoundError:  # pragma: no cover - source checkout without install
-    __version__ = "2026.8.0"
+
+def _resolve_version() -> str:
+    # The Docker workflow injects the released image version (YYYY.M.PATCH) via
+    # MAILSIEVE_VERSION; fall back to the installed package metadata otherwise.
+    env_version = os.environ.get("MAILSIEVE_VERSION")
+    if env_version and env_version != "dev":
+        return env_version
+    try:
+        return version("mailsieve")
+    except PackageNotFoundError:  # pragma: no cover - source checkout without install
+        return "2026.8.0"
+
+
+__version__ = _resolve_version()
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 _RATE_LIMIT_PER_MIN = 60

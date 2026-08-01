@@ -38,15 +38,22 @@ RUN python -m venv /opt/venv \
 # ---------- Stage 3: runtime ----------
 FROM python:3.12-slim AS runtime
 
+# Release version, passed by the Docker workflow (YYYY.M.PATCH). Recorded as an
+# OCI label and surfaced by the app (/api/v1/health) so the image tag and the
+# reported version match.
+ARG VERSION=dev
+
 LABEL org.opencontainers.image.title="Mailsieve" \
       org.opencontainers.image.description="Self-hosted email validation API over the mailboxlayer verification endpoint" \
       org.opencontainers.image.source="https://github.com/t0mer/mailsieve" \
-      org.opencontainers.image.licenses="Apache-2.0"
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.version="${VERSION}"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
-    MAILSIEVE_CONFIG_FILE=/config/config.yaml
+    MAILSIEVE_CONFIG_FILE=/config/config.yaml \
+    MAILSIEVE_VERSION=${VERSION}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
