@@ -100,3 +100,6 @@ alembic/versions/*.pyc
 docs/*
 *.design.md
 *.implementation.md
+
+# TypeScript incremental build info
+*.tsbuildinfo
