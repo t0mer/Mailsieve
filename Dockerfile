@@ -9,6 +9,8 @@ COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
 COPY frontend/ ./
+# vite.config.ts sets build.outDir to ../app/static, so the build output lands at
+# /app/static (a sibling of this /build workdir), copied into the runtime image below.
 RUN npm run build
 
 
@@ -59,7 +61,7 @@ COPY --chown=mailsieve:mailsieve app/ ./app/
 COPY --chown=mailsieve:mailsieve alembic/ ./alembic/
 COPY --chown=mailsieve:mailsieve alembic.ini ./
 COPY --chown=mailsieve:mailsieve config.example.yaml ./
-COPY --from=frontend --chown=mailsieve:mailsieve /build/dist ./app/static
+COPY --from=frontend --chown=mailsieve:mailsieve /app/static ./app/static
 
 RUN mkdir -p /data /data/backups /config \
     && chown -R mailsieve:mailsieve /data /config
