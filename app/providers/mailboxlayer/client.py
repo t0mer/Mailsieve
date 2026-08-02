@@ -1,9 +1,12 @@
-"""Upstream HTTP with proxy/UA rotation and retry (§5.5).
+"""Upstream HTTP: direct-first with proxy failover (§5.5).
+
+The direct request to mailboxlayer is fast and reliable, so it is the primary
+path. Only if the direct attempt fails (e.g. the IP is blocked) does the client
+rotate through the proxy pool — which is fetched lazily at that point, never on
+the hot path. Each attempt runs inside the shared politeness gate.
 
 httpx URL-encodes query params, so plus-addressing (``user+tag@example.com``)
-reaches the endpoint intact — such addresses are NOT filtered out (§1.2). Each
-attempt runs inside the shared politeness gate; on failure the proxy is marked
-bad and both proxy and user-agent rotate for the next attempt.
+reaches the endpoint intact — such addresses are NOT filtered out (§1.2).
 """
 
 from __future__ import annotations
@@ -40,7 +43,6 @@ class UpstreamClient:
         max_retries: int,
         backoff_seconds: float,
         politeness: Politeness,
-        fallback_direct: bool,
         client_factory: ClientFactory | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
@@ -50,7 +52,6 @@ class UpstreamClient:
         self._max_retries = max(1, max_retries)
         self._backoff = backoff_seconds
         self._politeness = politeness
-        self._fallback_direct = fallback_direct
         self._client_factory = client_factory or self._default_factory
         self._sleep = sleep or asyncio.sleep
 
@@ -64,29 +65,23 @@ class UpstreamClient:
         return httpx.AsyncClient(proxy=proxy, timeout=self._attempt_timeout(proxy))
 
     async def get_json(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Fetch and parse JSON, using proxies best-effort with a direct fallback.
+        """Fetch and parse JSON, direct-first with proxy as a last-resort failover.
 
-        Proxies are unreliable (free pool), so a proxy is tried first; the moment
-        one fails — or the pool is empty — the client falls back to a direct
-        request when ``fallback_direct`` is set, rather than cycling through dead
-        proxies until the retry budget is exhausted.
+        Direct is the fast, reliable path, so every attempt is direct except the
+        final one — a transient upstream hiccup (e.g. a non-JSON body) is retried
+        directly rather than jumping to the slow proxy pool. Only the last attempt
+        fails over to a proxy (e.g. if the IP is blocked), refreshing the pool
+        lazily at that point. If proxies are disabled/empty, the last attempt is
+        direct too.
         """
         last_exc: Exception | None = None
-        go_direct = False
         for attempt in range(self._max_retries):
-            if go_direct:
-                proxy = None
+            final_failover = attempt == self._max_retries - 1 and attempt > 0
+            if final_failover:
+                await self._proxies.ensure_fresh()  # lazy: only now that it's needed
+                proxy = self._proxies.pick()  # None if proxies disabled/empty -> direct
             else:
-                proxy = self._proxies.pick()
-                if proxy is None:
-                    if self._fallback_direct:
-                        go_direct = True  # empty pool -> direct from here on
-                    else:
-                        await self._proxies.refresh()
-                        proxy = self._proxies.pick()
-                        if proxy is None:
-                            last_exc = UpstreamError("no live proxy available")
-                            break
+                proxy = None  # direct: primary path + fast retries for transient errors
             ua = self._agents.pick()
             try:
                 async with self._politeness, self._client_factory(proxy) as client:
@@ -105,10 +100,6 @@ class UpstreamClient:
                 last_exc = exc
                 if proxy is not None:
                     self._proxies.mark_bad(proxy)
-                    # A proxy just failed; fall back to direct for the next attempt
-                    # instead of burning the retry budget on more dead proxies.
-                    if self._fallback_direct:
-                        go_direct = True
                 if attempt < self._max_retries - 1:
                     await self._sleep(self._backoff * (2**attempt))
         raise UpstreamError(

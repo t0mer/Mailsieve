@@ -34,7 +34,6 @@ mailboxlayer:
   api_path: /verify
   proxies:
     enabled: false
-    fallback_direct: true
   request:
     max_retries: 2
     backoff_seconds: 0

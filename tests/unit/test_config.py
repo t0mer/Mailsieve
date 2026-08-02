@@ -56,16 +56,6 @@ def test_postgres_url(monkeypatch, tmp_path):
     assert "p%40ss" in url  # password url-encoded
 
 
-def test_incoherent_proxies_raises(tmp_path, monkeypatch):
-    cfg = tmp_path / "c.yaml"
-    cfg.write_text(
-        "mailboxlayer:\n  proxies:\n    enabled: false\n    fallback_direct: false\n"
-    )
-    monkeypatch.setenv("MAILSIEVE_CONFIG_FILE", str(cfg))
-    with pytest.raises(ConfigError):
-        load_settings()
-
-
 def test_ui_auth_without_password_raises(tmp_path, monkeypatch):
     cfg = tmp_path / "c.yaml"
     cfg.write_text("auth:\n  ui:\n    enabled: true\n    password: ''\n")

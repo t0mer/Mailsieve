@@ -53,13 +53,13 @@ mailboxlayer:
     refresh_on_reject: true      # force one refresh if a response looks like a bad secret
 
   proxies:
-    enabled: true                # rotate through free proxies (as in the original script)
+    # Requests go DIRECT to mailboxlayer first (fast). Proxies are only used as a
+    # failover if the direct request fails, and the pool is fetched lazily then.
+    enabled: true                # false = never use proxies (pure direct)
     source_url: "https://api.proxyscrape.com/v4/free-proxy-list/get?request=get_proxies&skip=0&proxy_format=protocolipport&format=json&protocol=http&limit=200"
     protocol: http
     max: 200
-    refresh_minutes: 10          # re-fetch the pool on this interval
-    fallback_direct: true        # if a proxy is dead/empty, fall back to a direct request
-                                 # (recommended: free proxies are unreliable)
+    refresh_minutes: 10          # re-fetch the failover pool on this interval
 
   user_agents_file: ""           # empty = bundled app/data/user_agents.txt
 

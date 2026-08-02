@@ -100,9 +100,6 @@ class ProxiesCfg(BaseModel):
     protocol: str = "http"
     max: int = 200
     refresh_minutes: int = 10
-    # Free proxies are mostly dead; fall back to a direct request when they fail
-    # so validation stays fast and reliable. Politeness limits still apply.
-    fallback_direct: bool = True
 
 
 class RequestCfg(BaseModel):
@@ -228,11 +225,6 @@ class Settings(BaseSettings):
     def _check_coherence(self) -> Settings:
         if self.auth.ui.enabled and not self.auth.ui.password:
             raise ValueError("auth.ui.enabled is true but auth.ui.password is empty")
-        if not self.mailboxlayer.proxies.enabled and not self.mailboxlayer.proxies.fallback_direct:
-            raise ValueError(
-                "mailboxlayer.proxies.enabled is false and fallback_direct is false: "
-                "no upstream request could ever be made"
-            )
         return self
 
     def database_url(self) -> str:

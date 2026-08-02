@@ -50,7 +50,6 @@ def _write_config(tmp_path: Path, *, extra: str = "") -> Path:
         "mailboxlayer:\n"
         "  proxies:\n"
         "    enabled: false\n"
-        "    fallback_direct: true\n"
         "  politeness:\n"
         "    min_interval_seconds: 0\n"
         f"{extra}"

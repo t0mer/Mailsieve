@@ -62,7 +62,6 @@ class MailboxlayerProvider:
             max_retries=mb.request.max_retries,
             backoff_seconds=mb.request.backoff_seconds,
             politeness=self._politeness,
-            fallback_direct=mb.proxies.fallback_direct,
         )
 
     def _hash_key(self, email: str, secret: str) -> str:
@@ -82,7 +81,8 @@ class MailboxlayerProvider:
         if not _syntax_ok(email):
             return to_schema({"format_valid": False, "mx_found": False}, email, email_raw)
 
-        await self._proxies.ensure_fresh()
+        # The proxy pool is refreshed lazily inside the client, only on failover,
+        # so the direct-first hot path pays no proxy cost.
         secret = await self._secret.get()
         raw = await self._request(email, secret)
 
@@ -101,7 +101,9 @@ class MailboxlayerProvider:
         except SecretUnavailable as exc:
             detail = str(exc)
         proxy_count = self._proxies.count()
-        reachable = secret_ok and (proxy_count > 0 or self._cfg.proxies.fallback_direct)
+        # Direct-first: reachability depends only on the secret; proxies are an
+        # optional failover, so proxy_count is informational.
+        reachable = secret_ok
         return ProviderHealth(
             reachable=reachable,
             secret_ok=secret_ok,

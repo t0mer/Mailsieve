@@ -46,7 +46,6 @@ def _masked_view(request: Request, settings: Settings) -> dict[str, Any]:
         },
         "mailboxlayer": {
             "proxies_enabled": settings.mailboxlayer.proxies.enabled,
-            "fallback_direct": settings.mailboxlayer.proxies.fallback_direct,
         },
         "backup": {"max_upload_mb": settings.backup.max_upload_mb},
     }
